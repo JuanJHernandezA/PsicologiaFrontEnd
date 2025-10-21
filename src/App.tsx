@@ -1,14 +1,21 @@
-import './App.css'
-
-
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Login from './pages/login';
+import Registro from './pages/Registro';
+import './index.css'
 
 
 function App() {
   return (
+
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/registro" element={<Registro />} />
+        
+      </Routes>
+    </Router>
+
     
-    <div className="bg-black text-white min-h-screen flex items-center justify-center">
-      <h1 className="text-4xl font-bold">Welcome to PsicologiaFrontEnd!</h1>
-    </div>
     
   );
 }
