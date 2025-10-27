@@ -30,7 +30,6 @@ function Registro() {
             age--;
         }
 
-        // "mayor que 16 años" -> age must be strictly greater than 16
         return age > 16;
     };
 
@@ -58,103 +57,123 @@ function Registro() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-red-600">
-            <div className="bg-white p-6 rounded shadow-md w-full max-w-md mx-4 m-6">
-                <h1 className="text-lg font-bold mb-4 text-center">Registrate</h1>
-                <hr className="mb-4" />
+        <section className="relative flex items-center justify-center min-h-screen bg-gradient-to-r from-red-600 to-red-800 overflow-hidden py-8 px-4 sm:py-12 sm:px-6 lg:py-20">
+            <div className="absolute inset-0 z-0 opacity-20">
+                <img 
+                    src="/src/assets/images/hero-bg.jpg" 
+                    alt="Background" 
+                    className="w-full h-full object-cover"
+                />
+            </div>
+            <div className="container mx-auto bg-white p-4 sm:p-6 lg:p-8 rounded-lg shadow-xl w-full max-w-sm sm:max-w-2xl lg:max-w-5xl z-10">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-4 sm:mb-6 text-center text-gray-800">Registrate</h1>
                 <form onSubmit={handleSubmit}>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="name">Nombre</label>
-                        <input className="w-full p-2 border border-gray-300 rounded" type="text" id="name" name="name" placeholder="Digite su nombre" required />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        <div>
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="name">Nombre</label>
+                            <input className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" type="text" id="name" name="name" placeholder="Tu nombre" required />
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="surname">Apellido</label>
+                            <input className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" type="text" id="surname" name="surname" placeholder="Tu apellido" required />
+                        </div>
+
+                        <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="birth-date">Fecha de nacimiento</label>
+                            <input
+                                className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                                type="date"
+                                id="birth-date"
+                                name="birthDate"
+                                value={formData.birthDate}
+                                onChange={handleInputChange}
+                                required 
+                            />
+                            {birthDateError && <p className="text-red-500 text-xs mt-1">{birthDateError}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="genre">Género</label>
+                            <select className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" id="genre" name="genre" defaultValue="" required>
+                                <option value="" disabled>Seleccione</option>
+                                <option value="male">Masculino</option>
+                                <option value="female">Femenino</option>
+                                <option value="other">Otro</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="phone">Teléfono</label>
+                            <input className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" type="text" id="phone" name="phone" placeholder="Tu teléfono" required />
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="id">Documento de identidad</label>
+                            <input className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" type="text" id="id" name="id" placeholder="Tu documento" required />
+                        </div>
+
+                        <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="code-est">Código estudiantil</label>
+                            <input 
+                                className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" 
+                                type="text" 
+                                id="code-est" 
+                                name="code-est" 
+                                placeholder="EJ: 202012345" 
+                                maxLength={9}
+                                minLength={9} 
+                                pattern="\d{9}" 
+                                required 
+                            />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="email">Correo electrónico</label>
+                            <input className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition" type="email" id="email" name="email" placeholder="tucorreo@correounivalle.edu.co" required />
+                        </div>
+
+                        <div className="sm:col-span-2 lg:col-span-1">
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="password">Contraseña</label>
+                            <input
+                                className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                                type="password"
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                placeholder='Tu contraseña'
+                                required 
+                            />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label className="block text-gray-700 text-xs sm:text-sm font-medium mb-1 sm:mb-1.5" htmlFor="confirmPassword">Confirmar contraseña</label>
+                            <input
+                                className="w-full p-2 sm:p-2.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                                type="password"
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleInputChange}
+                                placeholder='Confirma tu contraseña'
+                                required 
+                            />
+                            {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
+                        </div>
+
+                        <div className="sm:col-span-2 lg:col-span-3 flex items-center justify-center sm:justify-between pt-2">
+                            <a href="/login" className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 hover:underline transition">¿Ya tienes una cuenta?</a>
+                        </div>
+
+                        <div className="sm:col-span-2 lg:col-span-3">
+                            <button className="w-full bg-red-600 text-white p-2.5 sm:p-3 text-sm sm:text-base rounded-md hover:bg-red-700 transition font-medium shadow-md hover:shadow-lg" type="submit">Registrarte</button>
+                        </div>
                     </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="surname">Apellido</label>
-                        <input className="w-full p-2 border border-gray-300 rounded" type="text" id="surname" name="surname" placeholder="Digite su apellido" required />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="birth-date">Fecha de nacimiento</label>
-                        <input
-                            className="w-full p-2 border border-gray-300 rounded"
-                            type="date"
-                            id="birth-date"
-                            name="birthDate"
-                            value={formData.birthDate}
-                            onChange={handleInputChange}
-                            required 
-                        />
-                        {birthDateError && <p className="text-red-500 text-sm mt-1">{birthDateError}</p>}
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="genre"> Género</label>
-                        <select className="w-full p-2 border border-gray-300 rounded" id="genre" name="genre" defaultValue="" required  >
-                            <option value="" disabled>Seleccione su género</option>
-                            <option value="male">Masculino</option>
-                            <option value="female">Femenino</option>
-                            <option value="other">Otro</option>
-                        </select>
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="phone">Teléfono</label>
-                        <input className="w-full p-2 border border-gray-300 rounded" type="text" id="phone" name="phone" placeholder="Digite su teléfono" required />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="code-est">Código estudiantil</label>
-                        <input 
-                            className="w-full p-2 border border-gray-300 rounded" 
-                            type="text" 
-                            id="code-est" 
-                            name="code-est" 
-                            placeholder="Digite su código estudiantil" 
-                            maxLength={9}
-                            minLength={9} 
-                            pattern="\d{9}" 
-                            required 
-                        />
-                       
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="id">Documento de identidad</label>
-                        <input className="w-full p-2 border border-gray-300 rounded" type="text" id="id" name="id" placeholder="Digite su documento de identidad" required />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="email">Correo</label>
-                        <input className="w-full p-2 border border-gray-300 rounded" type="text" id="email" name="email" placeholder="Digite su correo" required />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="password">Contraseña</label>
-                        <input
-                            className="w-full p-2 border border-gray-300 rounded"
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            placeholder='Digite su contraseña'
-                            required 
-                        />
-                    </div>
-                    <div className="mb-6">
-                        <label className="block text-gray-700 mb-2" htmlFor="confirmPassword">Confirmar Contraseña</label>
-                        <input
-                            className="w-full p-2 border border-gray-300 rounded"
-                            type="password"
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange}
-                            placeholder='Confirme su contraseña'
-                            required 
-                        />
-                        {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
-                    </div>
-                    <div className="mb-4 flex items-center justify-between">
-                        <a href="/login" className="text-sm text-blue-600 hover:underline mb-4 inline-block">¿Ya tienes una cuenta?</a>
-                    </div>
-                    <button className="w-full bg-red-600 text-white p-3 rounded hover:bg-red-700" type="submit">Registrarte</button>
                 </form>
             </div>
-        </div>
-
+        </section>
     );
 }
+
 export default Registro;
