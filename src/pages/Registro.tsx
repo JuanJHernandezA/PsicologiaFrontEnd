@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../index.css'
+import { registerUser } from '../api'
+import { useApiWithAuth } from '../hooks/useApiWithAuth'
 
 function Registro() {
     const [formData, setFormData] = useState({
@@ -9,6 +12,8 @@ function Registro() {
     });
     const [passwordError, setPasswordError] = useState('');
     const [birthDateError, setBirthDateError] = useState('');
+    const { handleApiCall } = useApiWithAuth();
+    const navigate = useNavigate();
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target as HTMLInputElement;
@@ -33,7 +38,7 @@ function Registro() {
         return age > 16;
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         let hasError = false;
 
@@ -53,7 +58,31 @@ function Registro() {
 
         if (hasError) return;
 
-        // Continuar con el registro
+        // Build payload matching backend DTO
+        const payload = {
+            name: (document.getElementById('name') as HTMLInputElement).value,
+            lastName: (document.getElementById('surname') as HTMLInputElement).value,
+            birthDate: formData.birthDate,
+            gender: (document.getElementById('genre') as HTMLSelectElement).value === 'male' ? 'M' : (document.getElementById('genre') as HTMLSelectElement).value === 'female' ? 'F' : 'Otro',
+            phone: (document.getElementById('phone') as HTMLInputElement).value,
+            studentCode: (document.getElementById('code-est') as HTMLInputElement).value || null,
+            identityDocument: (document.getElementById('id') as HTMLInputElement).value,
+            email: (document.getElementById('email') as HTMLInputElement).value,
+            role: 'Estudiante',
+            password: formData.password,
+        }
+
+        const success = await handleApiCall(
+            async () => {
+                await registerUser(payload as any);
+                return true;
+            },
+            'Registro exitoso. Por favor inicia sesión.'
+        );
+
+        if (success) {
+            navigate('/login');
+        }
     };
 
     return (
