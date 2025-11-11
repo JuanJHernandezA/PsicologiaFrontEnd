@@ -1,75 +1,53 @@
-# React + TypeScript + Vite
+# 🧠 Sistema de Gestión de Citas Psicológicas — Universidad del Valle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este repositorio contiene el **frontend** del sistema de gestión de citas psicológicas desarrollado para la Universidad del Valle. El sistema permite a estudiantes y profesionales agendar, visualizar y administrar citas de atención psicológica de forma eficiente y segura.
 
-Currently, two official plugins are available:
+## 🌐 Tecnologías utilizadas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React + TypeScript
+- Tailwind CSS
+- Vite
+- Axios
+- Framer Motion (animaciones)
+- i18n (soporte bilingüe)
+- JWT para autenticación
 
-## React Compiler
+---
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+## 🏗️ Arquitectura del sistema
 
-Note: This will impact Vite dev & build performances.
+Este proyecto forma parte de una arquitectura basada en microservicios. A continuación se listan los repositorios que componen el sistema completo:
 
-## Expanding the ESLint configuration
+| Repositorio | Descripción |
+|------------|-------------|
+| 🔗 [Frontend](https://github.com/univalle/citas-psicologia-frontend) | Interfaz de usuario para estudiantes y profesionales. Este repositorio. |
+| 🔗 [Microservicio de Usuario](https://github.com/univalle/citas-psicologia-usuarios) | Gestión de usuarios, roles, autenticación y perfiles. |
+| 🔗 [Microservicio de Citas](https://github.com/univalle/citas-psicologia-citas) | Lógica de agendamiento, disponibilidad, y manejo de citas. |
+| 🔗 [Servidor Eureka](https://github.com/univalle/citas-psicologia-eureka) | Registro y descubrimiento de servicios (Service Registry). |
+| 🔗 [API Gateway](https://github.com/univalle/citas-psicologia-gateway) | Puerta de entrada para todas las peticiones, con enrutamiento y seguridad. |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🖼️ Vista previa del sistema
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 🏠 Pantalla de inicio
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+![Pantalla de inicio](https://raw.githubusercontent.com/univalle/citas-psicologia-frontend/main/docs/home.png)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 📅 Panel de citas
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+![Panel de citas](https://raw.githubusercontent.com/univalle/citas-psicologia-frontend/main/docs/citas.png)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 👤 Perfil del usuario
+
+![Perfil del usuario](https://raw.githubusercontent.com/univalle/citas-psicologia-frontend/main/docs/perfil.png)
+
+---
+
+## 🚀 Instalación
+
+```bash
+git clone https://github.com/univalle/citas-psicologia-frontend.git
+cd citas-psicologia-frontend
+npm install
+npm run dev
