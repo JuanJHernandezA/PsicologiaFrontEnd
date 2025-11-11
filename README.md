@@ -17,8 +17,7 @@ Este proyecto forma parte de una arquitectura basada en microservicios. A contin
 
 | Repositorio | Descripción | Tecnologías |
 |------------|-------------|-------------|
-|  [Frontend](https://github.com/univalle/citas-psicologia-frontend) | Interfaz de usuario para estudiantes y profesionales. Este repositorio. | React + TypeScript
-- Tailwind CSS |
+|  [Frontend](https://github.com/univalle/citas-psicologia-frontend) | Interfaz de usuario para estudiantes y profesionales. Este repositorio. | React + TypeScript + Tailwind CSS |
 |  [Microservicio de Usuario](https://github.com/univalle/citas-psicologia-usuarios) | Gestión de usuarios, roles, autenticación y perfiles. | Java + SpringBoot |
 |  [Microservicio de Citas](https://github.com/univalle/citas-psicologia-citas) | Lógica de agendamiento, disponibilidad, y manejo de citas. | Java + SpringBoot |
 |  [Servidor Eureka](https://github.com/univalle/citas-psicologia-eureka) | Registro y descubrimiento de servicios (Service Registry). | Java + SpringBoot |
