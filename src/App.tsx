@@ -5,6 +5,10 @@ import { NotificationContainer } from './components/Notification';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import './index.css';
+//import Navbar from './components/Navbar';
+import Home from './pages/Home';
+import Gestion from './pages/Gestion';
+import Agendar from './pages/Agendar';
 
 function App() {
   return (
@@ -13,8 +17,11 @@ function App() {
         <Router>
           <NotificationContainer />
           <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/registro" element={<Registro />} />
+            <Route path="/gestion" element={<Gestion />} />
+            <Route path="/agendar" element={<Agendar />} />
           </Routes>
         </Router>
       </AuthProvider>
