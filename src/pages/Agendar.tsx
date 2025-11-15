@@ -1,6 +1,81 @@
+import { useState } from "react";
 import Navbar from "../components/Navbar";
+import { crearCita, type DateAppointment } from "../api";
+import { useApi } from "../context/ApiContext";
 
 export default function Agendar() {
+  const { addNotification, startLoading, stopLoading } = useApi();
+  const [formData, setFormData] = useState({
+    nombre: "",
+    codigo: "",
+    email: "",
+    telefono: "",
+    motivo: "",
+    fecha: "",
+    hora: "",
+  });
+
+  const [idPsicologo] = useState(1);
+  const [idCliente] = useState(1); 
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.fecha || !formData.hora) {
+      addNotification('error', 'Por favor selecciona una fecha y hora');
+      return;
+    }
+
+    if (!formData.nombre || !formData.email) {
+      addNotification('error', 'Por favor completa todos los campos obligatorios');
+      return;
+    }
+
+
+    const [hora, minutos] = formData.hora.split(':').map(Number);
+    const horaInicio = `${String(hora).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+    const horaFinNum = (hora + 1) % 24;
+    const horaFin = `${String(horaFinNum).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+
+    const nuevaCita: DateAppointment = {
+      idPsicologo,
+      idCliente,
+      fecha: formData.fecha,
+      horaInicio,
+      horaFin,
+    };
+
+    try {
+      startLoading();
+      await crearCita(nuevaCita);
+      addNotification('success', '¡Cita agendada correctamente!');
+      
+      setFormData({
+        nombre: "",
+        codigo: "",
+        email: "",
+        telefono: "",
+        motivo: "",
+        fecha: "",
+        hora: "",
+      });
+    } catch (error: any) {
+      addNotification('error', error.message || 'Error al agendar la cita');
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -56,14 +131,18 @@ export default function Agendar() {
               </div>
               
               <div className="md:w-1/2 p-12">
-                <form className="space-y-6">
+                <form className="space-y-6" onSubmit={handleSubmit}>
                   <div>
-                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
                     <input 
                       type="text" 
-                      id="nombre" 
+                      id="nombre"
+                      name="nombre"
+                      value={formData.nombre}
+                      onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       placeholder="Ingresa tu nombre completo"
+                      required
                     />
                   </div>
                   
@@ -71,19 +150,26 @@ export default function Agendar() {
                     <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 mb-1">Código Estudiantil</label>
                     <input 
                       type="text" 
-                      id="codigo" 
+                      id="codigo"
+                      name="codigo"
+                      value={formData.codigo}
+                      onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       placeholder="Ej: 2045678"
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico *</label>
                     <input 
                       type="email" 
-                      id="email" 
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       placeholder="correo@correounivalle.edu.co"
+                      required
                     />
                   </div>
                   
@@ -91,7 +177,10 @@ export default function Agendar() {
                     <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                     <input 
                       type="tel" 
-                      id="telefono" 
+                      id="telefono"
+                      name="telefono"
+                      value={formData.telefono}
+                      onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       placeholder="Ej: 3001234567"
                     />
@@ -100,7 +189,10 @@ export default function Agendar() {
                   <div>
                     <label htmlFor="motivo" className="block text-sm font-medium text-gray-700 mb-1">Motivo de Consulta</label>
                     <textarea 
-                      id="motivo" 
+                      id="motivo"
+                      name="motivo"
+                      value={formData.motivo}
+                      onChange={handleChange}
                       rows={3} 
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                       placeholder="Describe brevemente el motivo de tu consulta"
@@ -108,23 +200,32 @@ export default function Agendar() {
                   </div>
                   
                   <div>
-                    <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 mb-1">Fecha Preferida</label>
+                    <label htmlFor="fecha" className="block text-sm font-medium text-gray-700 mb-1">Fecha Preferida *</label>
                     <input 
                       type="date" 
-                      id="fecha" 
+                      id="fecha"
+                      name="fecha"
+                      value={formData.fecha}
+                      onChange={handleChange}
+                      min={today}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      required
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="hora" className="block text-sm font-medium text-gray-700 mb-1">Hora Preferida</label>
+                    <label htmlFor="hora" className="block text-sm font-medium text-gray-700 mb-1">Hora Preferida *</label>
                     <select 
-                      id="hora" 
+                      id="hora"
+                      name="hora"
+                      value={formData.hora}
+                      onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      required
                     >
                       <option value="">Selecciona una hora</option>
-                      <option value="8:00">8:00 AM</option>
-                      <option value="9:00">9:00 AM</option>
+                      <option value="08:00">8:00 AM</option>
+                      <option value="09:00">9:00 AM</option>
                       <option value="10:00">10:00 AM</option>
                       <option value="11:00">11:00 AM</option>
                       <option value="14:00">2:00 PM</option>
@@ -136,7 +237,7 @@ export default function Agendar() {
                   
                   <button 
                     type="submit" 
-                    className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors font-medium"
+                    className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Solicitar Cita
                   </button>
