@@ -156,6 +156,45 @@ export async function crearDisponibilidadesMasivas(
   return res.text()
 }
 
+export async function obtenerDisponibilidades(idPsicologo?: number, fecha?: string) {
+  let url = `${DATE_API_URL}/api/dates/disponibilidades`
+  if (idPsicologo && fecha) {
+    url += `?idPsicologo=${idPsicologo}&fecha=${fecha}`
+  } else if (idPsicologo) {
+    url += `?idPsicologo=${idPsicologo}`
+  } else if (fecha) {
+    url += `?fecha=${fecha}`
+  }
+  const res = await fetch(url)
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al obtener las disponibilidades')
+  }
+  return res.json() as Promise<Disponibilidad[]>
+}
+
+export async function obtenerTodasLasDisponibilidades() {
+  const res = await fetch(`${DATE_API_URL}/api/dates/disponibilidades/todas`)
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al obtener las disponibilidades')
+  }
+  return res.json() as Promise<Disponibilidad[]>
+}
+
+export async function actualizarDisponibilidad(id: number, disponibilidad: Disponibilidad) {
+  const res = await fetch(`${DATE_API_URL}/api/dates/disponibilidades/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(disponibilidad),
+  })
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al actualizar la disponibilidad')
+  }
+  return res.json() as Promise<Disponibilidad>
+}
+
 export default {
   API_URL,
   DATE_API_URL,
@@ -169,4 +208,7 @@ export default {
   obtenerCitasPorPsicologo,
   crearDisponibilidad,
   crearDisponibilidadesMasivas,
+  obtenerDisponibilidades,
+  obtenerTodasLasDisponibilidades,
+  actualizarDisponibilidad,
 }
