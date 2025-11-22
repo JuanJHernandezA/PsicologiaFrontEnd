@@ -70,7 +70,7 @@ export async function getAllUsers() {
 
 // Tipos para las citas
 export type DateAppointment = {
-  id: number;
+  id?: number;
   idPsicologo: number
   idCliente: number
   fecha: string // YYYY-MM-DD
@@ -173,6 +173,42 @@ export async function obtenerDisponibilidades(idPsicologo?: number, fecha?: stri
   return res.json() as Promise<Disponibilidad[]>
 }
 
+export type DisponibilidadFiltro = {
+  idPsicologo?: number
+  fecha?: string
+  mes?: number
+  anio?: number
+}
+
+export async function filtrarDisponibilidades(filtros: DisponibilidadFiltro) {
+  const params = new URLSearchParams()
+
+  if (filtros.idPsicologo !== undefined) {
+    params.append('idPsicologo', filtros.idPsicologo.toString())
+  }
+  if (filtros.fecha) {
+    params.append('fecha', filtros.fecha)
+  }
+  if (filtros.mes !== undefined) {
+    params.append('mes', filtros.mes.toString())
+  }
+  if (filtros.anio !== undefined) {
+    params.append('anio', filtros.anio.toString())
+  }
+
+  const query = params.toString()
+  const url = query
+    ? `${DATE_API_URL}/api/dates/disponibilidades/filtrar?${query}`
+    : `${DATE_API_URL}/api/dates/disponibilidades/filtrar`
+
+  const res = await fetch(url)
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al filtrar las disponibilidades')
+  }
+  return res.json() as Promise<Disponibilidad[]>
+}
+
 export async function obtenerTodasLasDisponibilidades() {
   const res = await fetch(`${DATE_API_URL}/api/dates/disponibilidades/todas`)
   if (!res.ok) {
@@ -209,6 +245,7 @@ export default {
   crearDisponibilidad,
   crearDisponibilidadesMasivas,
   obtenerDisponibilidades,
+  filtrarDisponibilidades,
   obtenerTodasLasDisponibilidades,
   actualizarDisponibilidad,
 }

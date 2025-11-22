@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
-import { crearCita, type DateAppointment } from "../api";
+import { crearCita, filtrarDisponibilidades, type DateAppointment, type Disponibilidad } from "../api";
 import { useApi } from "../context/ApiContext";
 
 export default function Agendar() {
@@ -17,10 +17,42 @@ export default function Agendar() {
 
   const [idPsicologo] = useState(1);
   const [idCliente] = useState(1); 
+  const [availabilityFilters, setAvailabilityFilters] = useState({
+    idPsicologo: "1",
+    fecha: "",
+    mes: "",
+    anio: new Date().getFullYear().toString(),
+  });
+  const [availabilityResults, setAvailabilityResults] = useState<Disponibilidad[]>([]);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [currentYear - 1, currentYear, currentYear + 1].map(String);
+  const monthOptions = [
+    { value: "1", label: "Enero" },
+    { value: "2", label: "Febrero" },
+    { value: "3", label: "Marzo" },
+    { value: "4", label: "Abril" },
+    { value: "5", label: "Mayo" },
+    { value: "6", label: "Junio" },
+    { value: "7", label: "Julio" },
+    { value: "8", label: "Agosto" },
+    { value: "9", label: "Septiembre" },
+    { value: "10", label: "Octubre" },
+    { value: "11", label: "Noviembre" },
+    { value: "12", label: "Diciembre" },
+  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleAvailabilityFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setAvailabilityFilters(prev => ({
       ...prev,
       [name]: value
     }));
@@ -45,7 +77,7 @@ export default function Agendar() {
     const horaFinNum = (hora + 1) % 24;
     const horaFin = `${String(horaFinNum).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
 
-    const nuevaCita: DateAppointment = {
+    const nuevaCita: Omit<DateAppointment, "id"> = {
       idPsicologo,
       idCliente,
       fecha: formData.fecha,
@@ -73,6 +105,61 @@ export default function Agendar() {
       stopLoading();
     }
   };
+
+  const handleConsultarDisponibilidad = async () => {
+    if (!availabilityFilters.idPsicologo) {
+      addNotification('error', 'Ingresa el ID del psicólogo para filtrar');
+      return;
+    }
+
+    const filtros: {
+      idPsicologo: number
+      fecha?: string
+      mes?: number
+      anio?: number
+    } = {
+      idPsicologo: Number(availabilityFilters.idPsicologo),
+    };
+
+    if (availabilityFilters.fecha) {
+      filtros.fecha = availabilityFilters.fecha;
+    }
+
+    if (availabilityFilters.mes) {
+      filtros.mes = Number(availabilityFilters.mes);
+    }
+
+    if (availabilityFilters.anio) {
+      filtros.anio = Number(availabilityFilters.anio);
+    }
+
+    try {
+      setIsCheckingAvailability(true);
+      const resultados = await filtrarDisponibilidades(filtros);
+      setAvailabilityResults(resultados);
+
+      if (resultados.length === 0) {
+        addNotification('info', 'No hay horarios disponibles con los filtros seleccionados');
+      }
+    } catch (error: any) {
+      addNotification('error', error.message || 'No se pudieron consultar las disponibilidades');
+    } finally {
+      setIsCheckingAvailability(false);
+    }
+  };
+
+  const formatFechaLegible = (fecha: string) => {
+    if (!fecha) return '';
+    const date = new Date(`${fecha}T00:00:00`);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatHora = (hora: string) => hora?.slice(0, 5) ?? '';
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -242,6 +329,130 @@ export default function Agendar() {
                     Solicitar Cita
                   </button>
                 </form>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-10 bg-white rounded-xl shadow-md p-8">
+            <div className="flex flex-col gap-10 md:flex-row">
+              <div className="md:w-1/3 space-y-6">
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-2">Consulta de Disponibilidad</h2>
+                  <p className="text-sm text-gray-600">
+                    Filtra los horarios disponibles por psicólogo, un día específico o por todo un mes.
+                    Combina los filtros según necesites.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="filtro-id" className="block text-sm font-medium text-gray-700 mb-1">ID del Psicólogo *</label>
+                    <input
+                      id="filtro-id"
+                      name="idPsicologo"
+                      type="number"
+                      min={1}
+                      value={availabilityFilters.idPsicologo}
+                      onChange={handleAvailabilityFilterChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      placeholder="Ej: 1"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="filtro-fecha" className="block text-sm font-medium text-gray-700 mb-1">Fecha específica</label>
+                    <input
+                      id="filtro-fecha"
+                      name="fecha"
+                      type="date"
+                      value={availabilityFilters.fecha}
+                      onChange={handleAvailabilityFilterChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filtrar por mes</label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <select
+                        name="mes"
+                        value={availabilityFilters.mes}
+                        onChange={handleAvailabilityFilterChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      >
+                        <option value="">Sin filtro</option>
+                        {monthOptions.map(mes => (
+                          <option key={mes.value} value={mes.value}>{mes.label}</option>
+                        ))}
+                      </select>
+                      <select
+                        name="anio"
+                        value={availabilityFilters.anio}
+                        onChange={handleAvailabilityFilterChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      >
+                        {yearOptions.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Si seleccionas un mes se utilizará el año indicado.</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleConsultarDisponibilidad}
+                  className="w-full bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isCheckingAvailability}
+                >
+                  {isCheckingAvailability ? 'Consultando...' : 'Consultar disponibilidad'}
+                </button>
+              </div>
+
+              <div className="md:flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">Horarios disponibles</h3>
+                    <p className="text-sm text-gray-500">
+                      {availabilityResults.length > 0
+                        ? `Encontramos ${availabilityResults.length} disponibilidad(es) para tus filtros.`
+                        : 'Usa los filtros para revisar los horarios disponibles en tiempo real.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border border-gray-200 rounded-lg">
+                  {isCheckingAvailability ? (
+                    <div className="p-6 text-center text-sm text-gray-500">Consultando disponibilidad...</div>
+                  ) : availabilityResults.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-gray-500">
+                      No hay horarios para mostrar. Ajusta los filtros y vuelve a intentarlo.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora inicio</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hora fin</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {availabilityResults.map((disp) => (
+                            <tr key={disp.id ?? `${disp.fecha}-${disp.horaInicio}-${disp.horaFin}`}>
+                              <td className="px-4 py-3 text-sm text-gray-900 capitalize">{formatFechaLegible(disp.fecha)}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{formatHora(disp.horaInicio)}</td>
+                              <td className="px-4 py-3 text-sm text-gray-700">{formatHora(disp.horaFin)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
