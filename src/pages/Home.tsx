@@ -106,7 +106,7 @@ export default function Home() {
                 className="w-full h-64 object-cover"
               />
               <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Dra. Jhoana Castaño Jejen</h3>
+                <h3 className="text-xl font-semibold mb-2">Dra. Ana Gómez</h3>
                 <p className="text-gray-500 mb-4">Psicóloga Clínica</p>
                 <p className="text-gray-600">
                   Especialista en terapia cognitivo-conductual con más de 10 años de experiencia en entornos universitarios.
@@ -122,7 +122,7 @@ export default function Home() {
                 className="w-full h-64 object-cover"
               />
               <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Dr. Cristian Rivera Torres</h3>
+                <h3 className="text-xl font-semibold mb-2">Dr. Carlos Mendoza</h3>
                 <p className="text-gray-500 mb-4">Psicólogo Educativo</p>
                 <p className="text-gray-600">
                   Especializado en problemas de aprendizaje y adaptación al entorno universitario.
@@ -138,7 +138,7 @@ export default function Home() {
                 className="w-full h-64 object-cover"
               />
               <div className="p-6">
-                <h3 className="text-xl font-semibold mb-2">Dra. Williana Alexandra Franco</h3>
+                <h3 className="text-xl font-semibold mb-2">Dra. María Rodríguez</h3>
                 <p className="text-gray-500 mb-4">Psicóloga Social</p>
                 <p className="text-gray-600">
                   Experta en dinámicas grupales y resolución de conflictos en ambientes académicos.

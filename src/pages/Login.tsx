@@ -1,5 +1,5 @@
 import '../index.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { generateToken } from '../api'
 import { useNavigate } from 'react-router-dom'
 import { useApiWithAuth } from '../hooks/useApiWithAuth'
@@ -7,8 +7,14 @@ import { useApiWithAuth } from '../hooks/useApiWithAuth'
 function Login() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const { handleApiCall, login } = useApiWithAuth()
+    const { handleApiCall, login, isAuthenticated } = useApiWithAuth()
     const navigate = useNavigate()
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/')
+        }
+    }, [isAuthenticated, navigate])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
