@@ -9,6 +9,8 @@ import './index.css';
 import Home from './pages/Home';
 import Gestion from './pages/Gestion';
 import Agendar from './pages/Agendar';
+import MisCitas from './pages/MisCitas';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -22,6 +24,8 @@ function App() {
             <Route path="/registro" element={<Registro />} />
             <Route path="/gestion" element={<Gestion />} />
             <Route path="/agendar" element={<Agendar />} />
+            <Route path="/mis-citas" element={<MisCitas />} />
+            <Route path= "/admin" element={<Admin />} />
           </Routes>
         </Router>
       </AuthProvider>

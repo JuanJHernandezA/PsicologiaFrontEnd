@@ -26,6 +26,11 @@ export default function Navbar() {
               </Link>
             </li>
             <li>
+              <Link to="/mis-citas" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                Mis Citas
+              </Link>
+            </li>
+            <li>
               <Link to="/gestion" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
                 Gestión de Citas
               </Link>
