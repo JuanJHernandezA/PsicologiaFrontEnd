@@ -1,6 +1,15 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar() {
+  const { isAuthenticated, role, logout, user } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-200 z-50 transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16 md:h-20">
@@ -13,29 +22,72 @@ export default function Navbar() {
           <span>Servicio de Salud Mental</span>
         </Link>
         
-        <nav className="hidden md:flex">
-          <ul className="flex space-x-8">
+        <nav className="hidden md:flex items-center">
+          <ul className="flex space-x-8 items-center">
             <li>
               <Link to="/" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
                 Inicio
               </Link>
             </li>
-            <li>
-              <Link to="/agendar" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
-                Agendar Cita
-              </Link>
-            </li>
-            <li>
-              <Link to="/gestion" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
-                Gestión de Citas
-              </Link>
-            </li>
-            <li>
-              <Link to="/admin" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
-                Administración
-              </Link>
-            </li>
+            
+            {/* Enlaces para Estudiantes */}
+            {isAuthenticated && role === 'Estudiante' && (
+              <>
+                <li>
+                  <Link to="/agendar" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                    Agendar Cita
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/mis-citas" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                    Mis Citas
+                  </Link>
+                </li>
+              </>
+            )}
+            
+            {/* Enlaces para Psicólogos */}
+            {isAuthenticated && role === 'Psicologo' && (
+              <li>
+                <Link to="/gestion" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                  Gestión de Citas
+                </Link>
+              </li>
+            )}
+            
+            {/* Enlaces para Administradores */}
+            {isAuthenticated && role === 'Administrador' && (
+              <li>
+                <Link to="/admin" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                  Administración
+                </Link>
+              </li>
+            )}
           </ul>
+          
+          {/* Botón de login/logout */}
+          <div className="ml-8 flex items-center gap-4">
+            {isAuthenticated ? (
+              <>
+                <span className="text-sm text-gray-600">
+                  {user?.name} {user?.lastName}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+                >
+                  Cerrar Sesión
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+              >
+                Iniciar Sesión
+              </Link>
+            )}
+          </div>
         </nav>
         
         <button className="md:hidden text-gray-800">
