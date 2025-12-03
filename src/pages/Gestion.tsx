@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { obtenerTodasLasCitas, cancelarCita, obtenerDisponibilidades, obtenerTodasLasDisponibilidades, actualizarDisponibilidad, type DateAppointment, type Disponibilidad } from "../api";
+import { obtenerTodasLasCitas, cancelarCita, modificarCita, obtenerDisponibilidades, obtenerTodasLasDisponibilidades, actualizarDisponibilidad, type DateAppointment, type Disponibilidad } from "../api";
 import { useApi } from "../context/ApiContext";
 
 
@@ -20,6 +20,15 @@ export default function Gestion() {
   const [disponibilidadEditando, setDisponibilidadEditando] = useState<Disponibilidad | null>(null);
   const [formularioEdicion, setFormularioEdicion] = useState({
     idPsicologo: "",
+    fecha: "",
+    horaInicio: "",
+    horaFin: ""
+  });
+
+  const [citaEditando, setCitaEditando] = useState<DateAppointment | null>(null);
+  const [formularioEdicionCita, setFormularioEdicionCita] = useState({
+    idPsicologo: "",
+    idCliente: "",
     fecha: "",
     horaInicio: "",
     horaFin: ""
@@ -82,6 +91,60 @@ export default function Gestion() {
 
     } catch (error: any) {
       addNotification("error", error.message || "Error al cancelar la cita");
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const iniciarEdicionCita = (cita: DateAppointment) => {
+    setCitaEditando(cita);
+    setFormularioEdicionCita({
+      idPsicologo: cita.idPsicologo.toString(),
+      idCliente: cita.idCliente.toString(),
+      fecha: cita.fecha,
+      horaInicio: cita.horaInicio,
+      horaFin: cita.horaFin
+    });
+  };
+
+  const cancelarEdicionCita = () => {
+    setCitaEditando(null);
+    setFormularioEdicionCita({
+      idPsicologo: "",
+      idCliente: "",
+      fecha: "",
+      horaInicio: "",
+      horaFin: ""
+    });
+  };
+
+  const handleModificarCita = async () => {
+    if (!citaEditando?.id) return;
+
+    if (!formularioEdicionCita.idPsicologo || !formularioEdicionCita.idCliente || 
+        !formularioEdicionCita.fecha || !formularioEdicionCita.horaInicio || 
+        !formularioEdicionCita.horaFin) {
+      addNotification("error", "Todos los campos son requeridos");
+      return;
+    }
+
+    try {
+      startLoading();
+      const citaModificada: DateAppointment = {
+        id: citaEditando.id,
+        idPsicologo: Number(formularioEdicionCita.idPsicologo),
+        idCliente: Number(formularioEdicionCita.idCliente),
+        fecha: formularioEdicionCita.fecha,
+        horaInicio: formularioEdicionCita.horaInicio,
+        horaFin: formularioEdicionCita.horaFin
+      };
+
+      await modificarCita(citaEditando.id, citaModificada);
+      addNotification("success", "Cita modificada correctamente");
+      cancelarEdicionCita();
+      await cargarCitas();
+    } catch (error: any) {
+      addNotification("error", error.message || "Error al modificar la cita");
     } finally {
       stopLoading();
     }
@@ -327,13 +390,13 @@ export default function Gestion() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <button 
                               className="text-blue-600 hover:text-blue-900 mr-3"
-                              onClick={() => addNotification('info', 'Función de edición próximamente')}
+                              onClick={() => iniciarEdicionCita(cita)}
                             >
                               Editar
                             </button>
                             <button 
                               className="text-red-600 hover:text-red-900"
-                              onClick={() => handleCancelarCita(cita.id)}
+                              onClick={() => handleCancelarCita(cita.id!)}
                             >
                               Cancelar
                             </button>
@@ -343,6 +406,83 @@ export default function Gestion() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {citaEditando && (
+              <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold mb-4">Editar Cita #{citaEditando.id}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ID Psicólogo
+                    </label>
+                    <input
+                      type="number"
+                      value={formularioEdicionCita.idPsicologo}
+                      onChange={(e) => setFormularioEdicionCita({ ...formularioEdicionCita, idPsicologo: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ID Cliente
+                    </label>
+                    <input
+                      type="number"
+                      value={formularioEdicionCita.idCliente}
+                      onChange={(e) => setFormularioEdicionCita({ ...formularioEdicionCita, idCliente: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Fecha
+                    </label>
+                    <input
+                      type="date"
+                      value={formularioEdicionCita.fecha}
+                      onChange={(e) => setFormularioEdicionCita({ ...formularioEdicionCita, fecha: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora Inicio
+                    </label>
+                    <input
+                      type="time"
+                      value={formularioEdicionCita.horaInicio}
+                      onChange={(e) => setFormularioEdicionCita({ ...formularioEdicionCita, horaInicio: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora Fin
+                    </label>
+                    <input
+                      type="time"
+                      value={formularioEdicionCita.horaFin}
+                      onChange={(e) => setFormularioEdicionCita({ ...formularioEdicionCita, horaFin: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-6">
+                  <button
+                    onClick={handleModificarCita}
+                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Guardar Cambios
+                  </button>
+                  <button
+                    onClick={cancelarEdicionCita}
+                    className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
             )}
           </div>

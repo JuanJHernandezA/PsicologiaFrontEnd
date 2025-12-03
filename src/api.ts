@@ -35,7 +35,7 @@ export async function generateToken(email: string, password: string) {
 }
 
 export async function cancelarCita(id: number) {
-  const response = await fetch(`http://localhost:8090/api/dates/cancelar/${id}`, {
+  const response = await fetch(`${DATE_API_URL}/api/dates/cancelar/${id}`, {
     method: "DELETE",
   });
 
@@ -45,6 +45,19 @@ export async function cancelarCita(id: number) {
   }
 
   return await response.text();
+}
+
+export async function modificarCita(id: number, cita: DateAppointment) {
+  const res = await fetch(`${DATE_API_URL}/api/dates/modificar/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cita),
+  })
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al modificar la cita')
+  }
+  return res.json() as Promise<DateAppointment>
 }
 
 
@@ -242,6 +255,8 @@ export default {
   obtenerTodasLasCitas,
   obtenerCitasPorCliente,
   obtenerCitasPorPsicologo,
+  cancelarCita,
+  modificarCita,
   crearDisponibilidad,
   crearDisponibilidadesMasivas,
   obtenerDisponibilidades,
