@@ -12,6 +12,7 @@ import Gestion from './pages/Gestion';
 import Agendar from './pages/Agendar';
 import MisCitas from './pages/MisCitas';
 import Admin from './pages/Admin';
+import Notificaciones from './pages/Notificaciones';
 
 function LoginRedirect() {
   const { isAuthenticated, loading } = useAuth();
@@ -68,6 +69,16 @@ function App() {
                   <Gestion />
                 </ProtectedRoute>
               } 
+            />
+            
+            {/* Notificaciones para Estudiantes y Psicólogos */}
+            <Route 
+              path="/notificaciones" 
+              element={
+                <ProtectedRoute allowedRoles={['Estudiante', 'Psicologo']}>
+                  <Notificaciones />
+                </ProtectedRoute>
+              }
             />
             
             {/* Ruta protegida solo para Administradores */}

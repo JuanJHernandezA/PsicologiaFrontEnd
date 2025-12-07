@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
-import { obtenerTodasLasCitas, cancelarCita, modificarCita, obtenerDisponibilidades, obtenerTodasLasDisponibilidades, actualizarDisponibilidad, type DateAppointment, type Disponibilidad } from "../api";
+import { obtenerTodasLasCitas, cancelarCita, modificarCita, obtenerDisponibilidades, obtenerTodasLasDisponibilidades, actualizarDisponibilidad, crearDisponibilidad, crearDisponibilidadesMasivas, type DateAppointment, type Disponibilidad } from "../api";
 import { useApi } from "../context/ApiContext";
+import { useAuth } from "../context/AuthContext";
 
 
 export default function Gestion() {
   const { addNotification, startLoading, stopLoading } = useApi();
+  const { role, user } = useAuth();
   const [seccionActiva, setSeccionActiva] = useState<"citas" | "disponibilidad">("citas");
   const [citas, setCitas] = useState<DateAppointment[]>([]);
   const [citasFiltradas, setCitasFiltradas] = useState<DateAppointment[]>([]);
@@ -24,6 +26,18 @@ export default function Gestion() {
     horaInicio: "",
     horaFin: ""
   });
+
+  // Formulario para crear disponibilidad propia (psicólogo)
+  const [newFecha, setNewFecha] = useState("");
+  const [newHoraInicio, setNewHoraInicio] = useState("");
+  const [newHoraFin, setNewHoraFin] = useState("");
+  const [bulkFechaInicio, setBulkFechaInicio] = useState("");
+  const [bulkFechaFin, setBulkFechaFin] = useState("");
+  const [bulkHoraInicio, setBulkHoraInicio] = useState("");
+  const [bulkHoraFin, setBulkHoraFin] = useState("");
+  const [diasSemana, setDiasSemana] = useState<{[k: number]: boolean}>({ 1: true, 2: true, 3: true, 4: true, 5: true, 6: false, 0: false });
+  const [creatingSingle, setCreatingSingle] = useState(false);
+  const [creatingBulk, setCreatingBulk] = useState(false);
 
   const [citaEditando, setCitaEditando] = useState<DateAppointment | null>(null);
   const [formularioEdicionCita, setFormularioEdicionCita] = useState({
@@ -68,7 +82,9 @@ export default function Gestion() {
   };
 
   const formatearFecha = (fecha: string) => {
-    const date = new Date(fecha);
+    // Dividir la fecha para evitar problemas de zona horaria
+    const [year, month, day] = fecha.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
@@ -154,8 +170,14 @@ export default function Gestion() {
     try {
       setCargandoDisponibilidades(true);
       startLoading();
-      const disp = await obtenerTodasLasDisponibilidades();
-      setDisponibilidades(disp);
+      if (role === 'Psicologo' && user?.id) {
+        const disp = await obtenerDisponibilidades(user.id);
+        setDisponibilidades(disp);
+        setFiltroPsicologo(String(user.id));
+      } else {
+        const disp = await obtenerTodasLasDisponibilidades();
+        setDisponibilidades(disp);
+      }
     } catch (error: any) {
       addNotification("error", error.message || "Error al cargar las disponibilidades");
     } finally {
@@ -170,11 +192,22 @@ export default function Gestion() {
       startLoading();
       
       // Si hay filtros, usarlos; si no, cargar todas
-      const idPsicologoFiltro = filtroPsicologo ? Number(filtroPsicologo) : undefined;
+      let idPsicologoFiltro = filtroPsicologo ? Number(filtroPsicologo) : undefined;
       const fechaFiltro = filtroFecha || undefined;
       
-      const disp = await obtenerDisponibilidades(idPsicologoFiltro, fechaFiltro);
-      setDisponibilidades(disp);
+      // En caso de rol Psicologo, forzar filtro por su propio ID
+      if (role === 'Psicologo' && user?.id) {
+        idPsicologoFiltro = user.id;
+        setFiltroPsicologo(String(user.id));
+      }
+      
+      if (idPsicologoFiltro !== undefined || fechaFiltro !== undefined) {
+        const disp = await obtenerDisponibilidades(idPsicologoFiltro, fechaFiltro);
+        setDisponibilidades(disp);
+      } else {
+        const disp = await obtenerTodasLasDisponibilidades();
+        setDisponibilidades(disp);
+      }
     } catch (error: any) {
       addNotification("error", error.message || "Error al cargar las disponibilidades");
     } finally {
@@ -244,8 +277,111 @@ export default function Gestion() {
     return `${horas12}:${minutos} ${periodo}`;
   };
 
+  // Creación de disponibilidad (día único)
+  const crearDisponibilidadPropia = async () => {
+    if (!(role === 'Psicologo' && user?.id)) {
+      addNotification('error', 'Solo psicólogos autenticados pueden crear su disponibilidad');
+      return;
+    }
+    if (!newFecha || !newHoraInicio || !newHoraFin) {
+      addNotification('error', 'Completa fecha, hora inicio y hora fin');
+      return;
+    }
+    try {
+      setCreatingSingle(true);
+      startLoading();
+      await crearDisponibilidad({
+        idPsicologo: user.id,
+        fecha: newFecha,
+        horaInicio: newHoraInicio,
+        horaFin: newHoraFin,
+      });
+      addNotification('success', 'Disponibilidad creada');
+      setNewFecha('');
+      setNewHoraInicio('');
+      setNewHoraFin('');
+      await cargarTodasLasDisponibilidades();
+    } catch (error: any) {
+      addNotification('error', error.message || 'Error al crear disponibilidad');
+    } finally {
+      setCreatingSingle(false);
+      stopLoading();
+    }
+  };
+
+  // Creación masiva en rango de fechas y días seleccionados
+  const crearDisponibilidadesPorRango = async () => {
+    if (!(role === 'Psicologo' && user?.id)) {
+      addNotification('error', 'Solo psicólogos autenticados pueden crear su disponibilidad');
+      return;
+    }
+    if (!bulkFechaInicio || !bulkFechaFin || !bulkHoraInicio || !bulkHoraFin) {
+      addNotification('error', 'Completa fechas y horas del rango');
+      return;
+    }
+    const diasSeleccionados = Object.entries(diasSemana)
+      .filter(([_, v]) => v)
+      .map(([k]) => Number(k));
+    if (diasSeleccionados.length === 0) {
+      addNotification('error', 'Selecciona al menos un día de la semana');
+      return;
+    }
+    try {
+      setCreatingBulk(true);
+      startLoading();
+      // Si se seleccionan todos los días, usamos el endpoint masivo del backend
+      if (diasSeleccionados.length === 7) {
+        await crearDisponibilidadesMasivas(
+          Number(user.id),
+          bulkFechaInicio,
+          bulkFechaFin,
+          bulkHoraInicio,
+          bulkHoraFin,
+        );
+      } else {
+        // De lo contrario, generamos fechas del rango que coincidan con los días seleccionados
+        const start = new Date(bulkFechaInicio);
+        const end = new Date(bulkFechaFin);
+        const toYMD = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const da = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${da}`;
+        };
+        const creations: Promise<any>[] = [];
+        for (let d = new Date(start.getTime()); d.getTime() <= end.getTime(); d.setDate(d.getDate() + 1)) {
+          const dow = d.getDay(); // 0..6
+          if (diasSeleccionados.includes(dow)) {
+            creations.push(
+              crearDisponibilidad({
+                idPsicologo: Number(user.id),
+                fecha: toYMD(d),
+                horaInicio: bulkHoraInicio,
+                horaFin: bulkHoraFin,
+              })
+            );
+          }
+        }
+        await Promise.all(creations);
+      }
+      addNotification('success', 'Disponibilidades creadas');
+      setBulkFechaInicio('');
+      setBulkFechaFin('');
+      setBulkHoraInicio('');
+      setBulkHoraFin('');
+      await cargarTodasLasDisponibilidades();
+    } catch (error: any) {
+      addNotification('error', error.message || 'Error al crear disponibilidades');
+    } finally {
+      setCreatingBulk(false);
+      stopLoading();
+    }
+  };
+
   const obtenerEstado = (fecha: string, horaFin: string) => {
-    const fechaCita = new Date(`${fecha}T${horaFin}`);
+    // Dividir la fecha para evitar problemas de zona horaria
+    const [year, month, day] = fecha.split('-').map(Number);
+    const fechaCita = new Date(year, month - 1, day, ...horaFin.split(':').map(Number));
     const ahora = new Date();
     
     if (fechaCita < ahora) {
@@ -501,39 +637,118 @@ export default function Gestion() {
                     Actualizar
                   </button>
                 </div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">Filtros (opcionales)</h3>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <input
-                    type="number"
-                    placeholder="ID Psicólogo (opcional)"
-                    value={filtroPsicologo}
-                    onChange={(e) => setFiltroPsicologo(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                  <input
-                    type="date"
-                    placeholder="Fecha (opcional)"
-                    value={filtroFecha}
-                    onChange={(e) => setFiltroFecha(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                  <button
-                    onClick={cargarDisponibilidades}
-                    className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
-                  >
-                    Filtrar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFiltroPsicologo("");
-                      setFiltroFecha("");
-                      cargarTodasLasDisponibilidades();
-                    }}
-                    className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
-                  >
-                    Limpiar
-                  </button>
-                </div>
+                {role === 'Psicologo' ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="p-4 border border-gray-200 rounded-md">
+                      <h3 className="text-base font-semibold mb-2">Crear disponibilidad (día único)</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">ID Psicólogo</label>
+                          <input type="text" value={user?.id ?? ''} disabled className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Fecha</label>
+                          <input type="date" value={newFecha} onChange={(e) => setNewFecha(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Hora inicio</label>
+                            <input type="time" value={newHoraInicio} onChange={(e) => setNewHoraInicio(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Hora fin</label>
+                            <input type="time" value={newHoraFin} onChange={(e) => setNewHoraFin(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={crearDisponibilidadPropia} disabled={creatingSingle} className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors">
+                        {creatingSingle ? 'Creando...' : 'Crear'}
+                      </button>
+                    </div>
+
+                    <div className="p-4 border border-gray-200 rounded-md">
+                      <h3 className="text-base font-semibold mb-2">Crear por rango de fechas</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">ID Psicólogo</label>
+                          <input type="text" value={user?.id ?? ''} disabled className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Fecha inicio</label>
+                            <input type="date" value={bulkFechaInicio} onChange={(e) => setBulkFechaInicio(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Fecha fin</label>
+                            <input type="date" value={bulkFechaFin} onChange={(e) => setBulkFechaFin(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Hora inicio</label>
+                            <input type="time" value={bulkHoraInicio} onChange={(e) => setBulkHoraInicio(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Hora fin</label>
+                            <input type="time" value={bulkHoraFin} onChange={(e) => setBulkHoraFin(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-md" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Días de la semana</label>
+                          <div className="grid grid-cols-7 gap-2">
+                            {[{k:1,l:'L'},{k:2,l:'M'},{k:3,l:'X'},{k:4,l:'J'},{k:5,l:'V'},{k:6,l:'S'},{k:0,l:'D'}].map(d => (
+                              <label key={d.k} className="flex items-center gap-2">
+                                <input type="checkbox" checked={!!diasSemana[d.k]} onChange={(e) => setDiasSemana(prev => ({ ...prev, [d.k]: e.target.checked }))} />
+                                <span>{d.l}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={crearDisponibilidadesPorRango} disabled={creatingBulk} className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors">
+                        {creatingBulk ? 'Creando...' : 'Crear en rango'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Filtros (opcionales)</h3>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <input
+                        type="number"
+                        placeholder="ID Psicólogo (opcional)"
+                        value={filtroPsicologo}
+                        onChange={(e) => setFiltroPsicologo(e.target.value)}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      />
+                      <input
+                        type="date"
+                        placeholder="Fecha (opcional)"
+                        value={filtroFecha}
+                        onChange={(e) => setFiltroFecha(e.target.value)}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      />
+                      <button
+                        onClick={cargarDisponibilidades}
+                        className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
+                      >
+                        Filtrar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFiltroPsicologo("");
+                          setFiltroFecha("");
+                          cargarTodasLasDisponibilidades();
+                        }}
+                        className="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {cargandoDisponibilidades ? (
@@ -615,9 +830,10 @@ export default function Gestion() {
                       </label>
                       <input
                         type="number"
-                        value={formularioEdicion.idPsicologo}
+                        value={role === 'Psicologo' && user?.id ? user.id : formularioEdicion.idPsicologo}
                         onChange={(e) => setFormularioEdicion({ ...formularioEdicion, idPsicologo: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        disabled={role === 'Psicologo'}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div>

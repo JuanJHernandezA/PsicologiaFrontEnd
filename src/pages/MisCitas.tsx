@@ -1,76 +1,96 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { useApi } from "../context/ApiContext";
+import { useAuth } from "../context/AuthContext";
+import { obtenerCitasPorCliente, modificarCita, cancelarCita, listarPsicologos, type DateAppointment, type Usuario } from "../api";
 
 export default function MisCitas() {
-  type PsychologistId = "ana-gomez" | "maria-rodriguez" | "carlos-mendoza";
-  type DayName = "Lunes" | "Martes" | "Miércoles" | "Jueves" | "Viernes" | "Sábado" | "Domingo";
-
-  const psychologists: { id: PsychologistId; name: string }[] = [
-    { id: "ana-gomez", name: "Dra. Ana Gómez" },
-    { id: "maria-rodriguez", name: "Dra. María Rodríguez" },
-    { id: "carlos-mendoza", name: "Dr. Carlos Mendoza" },
-  ];
-
-  const availabilityByPsychologist = useMemo<Record<PsychologistId, { days: Record<DayName, boolean> }>>(
-    () => ({
-      "ana-gomez": {
-        days: { Lunes: true, Martes: true, Miércoles: false, Jueves: true, Viernes: true, Sábado: false, Domingo: false },
-      },
-      "maria-rodriguez": {
-        days: { Lunes: true, Martes: false, Miércoles: true, Jueves: false, Viernes: true, Sábado: false, Domingo: false },
-      },
-      "carlos-mendoza": {
-        days: { Lunes: false, Martes: true, Miércoles: true, Jueves: true, Viernes: false, Sábado: false, Domingo: false },
-      },
-    }),
-    []
-  );
-
-  const initialAppointment = {
-    id: "#A-2025-0001",
-    psychologistId: "maria-rodriguez" as PsychologistId,
-    name: "Estudiante Ejemplo",
-    studentCode: "2045678",
-    email: "estudiante@correounivalle.edu.co",
-    phone: "3001234567",
-    motive: "Consulta de orientación académica y manejo de estrés.",
-    date: new Date().toISOString().slice(0, 10),
-    time: "10:00",
-  };
-
   const { addNotification } = useApi();
+  const { user, role } = useAuth();
 
-  const [original, setOriginal] = useState(initialAppointment);
-  const [draft, setDraft] = useState(initialAppointment);
+  // Estado de citas y selección
+  const [citas, setCitas] = useState<DateAppointment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedCita, setSelectedCita] = useState<DateAppointment | null>(null);
 
-  const dayNames: DayName[] = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"] as unknown as DayName[];
+  // Draft de reprogramación
+  const [draftDate, setDraftDate] = useState<string>("");
+  const [draftTime, setDraftTime] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
-  const selectedDay: DayName | null = useMemo(() => {
-    const d = new Date(draft.date);
+  // Psicólogos reales para mostrar nombre en el resumen
+  const [psicologos, setPsicologos] = useState<Usuario[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await listarPsicologos();
+        setPsicologos(data);
+      } catch (_) {
+        // silencioso: si falla, se mostrará el ID del psicólogo
+      }
+    })();
+  }, []);
+
+  const loadData = useCallback(async () => {
+    if (!user?.id || role !== 'Estudiante') return;
+    try {
+      setLoading(true);
+      const data = await obtenerCitasPorCliente(Number(user.id));
+      setCitas(data);
+      // Si la cita seleccionada ya no existe, limpiamos selección
+      if (selectedCita) {
+        const stillThere = data.find(c => c.id === selectedCita.id);
+        if (!stillThere) setSelectedCita(null);
+      }
+    } catch (err: any) {
+      addNotification('error', err.message || 'Error cargando tus citas');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, role, addNotification, selectedCita]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Helpers para hora
+  const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const selectedDay: string | null = useMemo(() => {
+    const d = new Date(draftDate);
     if (isNaN(d.getTime())) return null;
-    const name = dayNames[d.getDay()];
-    return name;
-  }, [draft.date]);
+    return dayNames[d.getDay()];
+  }, [draftDate]);
 
+  const timeToMinutes = (t: string) => {
+    const [hh, mm] = t.split(":").map(Number);
+    return hh * 60 + mm;
+  };
+  const minutesToTime = (m: number) => {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  };
+  const addMinutesToTime = (t: string, minutes: number) => minutesToTime(timeToMinutes(t) + minutes);
+
+  // Validaciones solo de fecha/hora
   const errors = useMemo(() => {
     const out: Record<string, string> = {};
-    if (!draft.name || draft.name.trim().length < 3) out.name = "Nombre inválido";
-    if (!/^[0-9]{6,}$/.test(draft.studentCode)) out.studentCode = "Código inválido";
-    if (!/^\S+@\S+\.\S+$/.test(draft.email)) out.email = "Correo inválido";
-    if (!/^\d{10}$/.test(draft.phone)) out.phone = "Teléfono inválido";
-    if (!draft.motive || draft.motive.trim().length < 10) out.motive = "Motivo muy corto";
+    if (!selectedCita) {
+      out.general = "Selecciona una cita para editar o cancelar";
+      return out;
+    }
     const today = new Date();
-    const selected = new Date(draft.date);
+    const selected = new Date(draftDate);
     if (isNaN(selected.getTime())) out.date = "Fecha inválida";
     else {
       const selectedMid = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate());
       const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
       if (selectedMid < todayMid) out.date = "No puede ser en el pasado";
     }
-    if (!draft.time) out.time = "Hora requerida";
+    if (!draftTime) out.time = "Hora requerida";
     else {
-      const [hh, mm] = draft.time.split(":");
+      const [hh, mm] = draftTime.split(":");
       const h = Number(hh);
       const m = Number(mm);
       if (Number.isNaN(h) || Number.isNaN(m)) out.time = "Hora inválida";
@@ -82,27 +102,64 @@ export default function MisCitas() {
         if (candidate <= now) out.time = "Selecciona una hora futura";
       }
     }
-    if (selectedDay) {
-      const avail = availabilityByPsychologist[draft.psychologistId].days[selectedDay];
-      if (!avail) out.psychologistId = "El psicólogo no atiende ese día";
-    }
-    const noChanges =
-      draft.psychologistId === original.psychologistId &&
-      draft.date === original.date &&
-      draft.time === original.time &&
-      draft.motive === original.motive &&
-      draft.email === original.email &&
-      draft.phone === original.phone &&
-      draft.name === original.name &&
-      draft.studentCode === original.studentCode;
-    if (noChanges) out.general = "No hay cambios";
     return out;
-  }, [draft, original, selectedDay, availabilityByPsychologist]);
+  }, [draftDate, draftTime, selectedCita]);
 
-  const onSubmit = () => {
-    if (Object.keys(errors).length > 0) return;
-    setOriginal(draft);
-    addNotification("success", "Cambios guardados (solo visual)");
+  // Selección de cita
+  const handleSelect = (cita: DateAppointment) => {
+    setSelectedCita(cita);
+    setDraftDate(cita.fecha);
+    setDraftTime(cita.horaInicio);
+  };
+
+  const getPsychologistName = (id?: number) => {
+    if (!id) return undefined;
+    const p = psicologos.find((x) => x.id === id);
+    return p ? `${p.name} ${p.lastName}` : undefined;
+  };
+
+  // Reprogramar (actualizar fecha/hora)
+  const onUpdate = async () => {
+    if (Object.keys(errors).length > 0 || !selectedCita?.id) return;
+    try {
+      setSaving(true);
+      const durMin = timeToMinutes(selectedCita.horaFin) - timeToMinutes(selectedCita.horaInicio);
+      const nuevoFin = addMinutesToTime(draftTime, Math.max(durMin, 0));
+      const payload: DateAppointment = {
+        idPsicologo: selectedCita.idPsicologo,
+        idCliente: Number(user?.id),
+        fecha: draftDate,
+        horaInicio: draftTime,
+        horaFin: nuevoFin,
+      };
+      await modificarCita(Number(selectedCita.id), payload);
+      addNotification("success", "Cita actualizada correctamente");
+      await loadData();
+      const updated = { ...selectedCita, fecha: payload.fecha, horaInicio: payload.horaInicio, horaFin: payload.horaFin };
+      setSelectedCita(updated);
+    } catch (err: any) {
+      addNotification("error", err.message || "Error al modificar la cita");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Cancelar cita
+  const onCancel = async () => {
+    if (!selectedCita?.id) return;
+    try {
+      setCancelling(true);
+      await cancelarCita(Number(selectedCita.id));
+      addNotification("success", "Cita cancelada");
+      await loadData();
+      setSelectedCita(null);
+      setDraftDate("");
+      setDraftTime("");
+    } catch (err: any) {
+      addNotification("error", err.message || "Error al cancelar la cita");
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -112,50 +169,78 @@ export default function MisCitas() {
         <div className="container mx-auto px-4 max-w-5xl">
           <h1 className="text-3xl font-bold mb-8 text-center">Mis Citas</h1>
 
+          {/* Lista de citas reales */}
+          <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Citas asociadas a tu cuenta</h2>
+              <button
+                onClick={loadData}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                disabled={loading}
+              >
+                {loading ? 'Actualizando…' : 'Actualizar'}
+              </button>
+            </div>
+
+            {citas.length === 0 ? (
+              <p className="text-gray-600">No tienes citas registradas.</p>
+            ) : (
+              <ul className="space-y-3">
+                {citas.map((cita) => (
+                  <li
+                    key={`${cita.id}-${cita.fecha}-${cita.horaInicio}`}
+                    onClick={() => handleSelect(cita)}
+                    className={`p-4 border rounded-lg flex items-start justify-between cursor-pointer transition-colors ${selectedCita?.id === cita.id ? 'border-red-500 bg-red-50' : 'hover:bg-gray-50'}`}
+                  >
+                    <div>
+                      <p className="font-medium">{cita.fecha} · {cita.horaInicio} – {cita.horaFin}</p>
+                      <p className="text-sm text-gray-500">Psicólogo: {getPsychologistName(cita.idPsicologo) ?? `ID ${cita.idPsicologo}`}</p>
+                    </div>
+                    <span className="text-xs text-gray-400">#{cita.id}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Resumen y acciones sobre la cita seleccionada */}
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Resumen de la cita</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span>ID</span><span className="font-medium">{original.id}</span></div>
-                <div className="flex justify-between"><span>Psicólogo</span><span className="font-medium">{psychologists.find(p => p.id === original.psychologistId)?.name}</span></div>
-                <div className="flex justify-between"><span>Fecha</span><span className="font-medium">{original.date}</span></div>
-                <div className="flex justify-between"><span>Hora</span><span className="font-medium">{original.time}</span></div>
-                <div className="flex justify-between"><span>Motivo</span><span className="font-medium">{original.motive}</span></div>
-              </div>
+              {selectedCita ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span>ID</span><span className="font-medium">{selectedCita.id}</span></div>
+                  <div className="flex justify-between"><span>Psicólogo</span><span className="font-medium">{getPsychologistName(selectedCita.idPsicologo) ?? `ID ${selectedCita.idPsicologo}`}</span></div>
+                  <div className="flex justify-between"><span>Fecha</span><span className="font-medium">{selectedCita.fecha}</span></div>
+                  <div className="flex justify-between"><span>Hora</span><span className="font-medium">{selectedCita.horaInicio} – {selectedCita.horaFin}</span></div>
+                </div>
+              ) : (
+                <p className="text-gray-600">Selecciona una cita de la lista para ver su resumen.</p>
+              )}
             </div>
 
             <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Editar Cita</h2>
+              <h2 className="text-xl font-semibold mb-4">Reprogramar / Cancelar</h2>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Psicólogo</label>
-                  <select
-                    value={draft.psychologistId}
-                    onChange={(e) => setDraft({ ...draft, psychologistId: e.target.value as PsychologistId })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  >
-                    {psychologists.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
-                  </select>
-                  {errors.psychologistId && <p className="text-red-600 text-xs mt-1">{errors.psychologistId}</p>}
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nueva fecha</label>
                     <input
                       type="date"
-                      value={draft.date}
-                      onChange={(e) => setDraft({ ...draft, date: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      value={draftDate}
+                      onChange={(e) => setDraftDate(e.target.value)}
+                      disabled={!selectedCita}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100"
                     />
                     {errors.date && <p className="text-red-600 text-xs mt-1">{errors.date}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Hora</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nueva hora</label>
                     <select
-                      value={draft.time}
-                      onChange={(e) => setDraft({ ...draft, time: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                      value={draftTime}
+                      onChange={(e) => setDraftTime(e.target.value)}
+                      disabled={!selectedCita}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100"
                     >
                       <option value="">Selecciona una hora</option>
                       <option value="08:00">8:00 AM</option>
@@ -171,72 +256,22 @@ export default function MisCitas() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-                  <textarea
-                    rows={3}
-                    value={draft.motive}
-                    onChange={(e) => setDraft({ ...draft, motive: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  />
-                  {errors.motive && <p className="text-red-600 text-xs mt-1">{errors.motive}</p>}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Correo</label>
-                    <input
-                      type="email"
-                      value={draft.email}
-                      onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
-                    {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                    <input
-                      type="tel"
-                      value={draft.phone}
-                      onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
-                    {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input
-                      type="text"
-                      value={draft.name}
-                      onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
-                    {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Código Estudiantil</label>
-                    <input
-                      type="text"
-                      value={draft.studentCode}
-                      onChange={(e) => setDraft({ ...draft, studentCode: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    />
-                    {errors.studentCode && <p className="text-red-600 text-xs mt-1">{errors.studentCode}</p>}
-                  </div>
-                </div>
-
                 {errors.general && <p className="text-red-600 text-sm">{errors.general}</p>}
 
-                <div className="flex justify-end mt-2">
+                <div className="flex items-center justify-end gap-3 mt-2">
                   <button
-                    onClick={onSubmit}
-                    disabled={Object.keys(errors).length > 0}
+                    onClick={onCancel}
+                    disabled={!selectedCita || cancelling}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    {cancelling ? 'Cancelando…' : 'Cancelar cita'}
+                  </button>
+                  <button
+                    onClick={onUpdate}
+                    disabled={Object.keys(errors).length > 0 || saving}
                     className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
                   >
-                    Guardar cambios
+                    {saving ? 'Guardando…' : 'Guardar cambios'}
                   </button>
                 </div>
               </div>

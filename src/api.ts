@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:9999'
 const DATE_API_URL = import.meta.env.VITE_DATE_API_URL || 'http://localhost:9998'
+const NOTIFICATION_API_URL = import.meta.env.VITE_NOTIFICATION_API_URL || 'http://localhost:9997'
+const USER_API_URL = import.meta.env.VITE_USER_API_URL || API_URL
 
 type RegisterPayload = {
   name: string
@@ -97,6 +99,14 @@ export type Disponibilidad = {
   fecha: string // YYYY-MM-DD
   horaInicio: string // HH:mm
   horaFin: string // HH:mm
+}
+
+export type NotificationItem = {
+  id?: number
+  idPsicologo: number
+  idCliente: number
+  fecha: string // YYYY-MM-DD
+  message: string
 }
 
 // Funciones para gestionar citas
@@ -244,6 +254,56 @@ export async function actualizarDisponibilidad(id: number, disponibilidad: Dispo
   return res.json() as Promise<Disponibilidad>
 }
 
+export async function crearNotificacion(notificacion: NotificationItem) {
+  const res = await fetch(`${NOTIFICATION_API_URL}/api/notification/crear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(notificacion),
+  })
+  if (!res.ok) {
+    const errorText = await res.text()
+    throw new Error(errorText || 'Error al crear la notificación')
+  }
+  return res.text()
+}
+
+export async function listarNotificacionesPorPsicologo(idPsicologo: number) {
+  const res = await fetch(`${NOTIFICATION_API_URL}/api/notification/psicologo/${idPsicologo}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<NotificationItem[]>
+}
+
+export async function listarNotificacionesPorCliente(idCliente: number) {
+  const res = await fetch(`${NOTIFICATION_API_URL}/api/notification/cliente/${idCliente}`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<NotificationItem[]>
+}
+
+export async function eliminarNotificacion(id: number) {
+  const res = await fetch(`${NOTIFICATION_API_URL}/api/notification/${id}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return true
+}
+
+export async function actualizarNotificacion(id: number, notificacion: NotificationItem) {
+  const res = await fetch(`${NOTIFICATION_API_URL}/api/notification/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(notificacion),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<NotificationItem>
+}
+
+export async function listarPsicologos() {
+  const headers = authHeader() as HeadersInit
+  const res = await fetch(`${USER_API_URL}/auth/psychologists`, { headers })
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<Usuario[]>
+}
+
 export default {
   API_URL,
   DATE_API_URL,
@@ -263,4 +323,19 @@ export default {
   filtrarDisponibilidades,
   obtenerTodasLasDisponibilidades,
   actualizarDisponibilidad,
+  NOTIFICATION_API_URL,
+  crearNotificacion,
+  listarNotificacionesPorPsicologo,
+  listarNotificacionesPorCliente,
+  eliminarNotificacion,
+  actualizarNotificacion,
+  USER_API_URL,
+  listarPsicologos,
+}
+
+export type Usuario = {
+  id: number
+  name: string
+  lastName: string
+  email: string
 }

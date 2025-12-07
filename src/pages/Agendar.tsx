@@ -2,9 +2,11 @@ import { useState } from "react";
 import Navbar from "../components/Navbar";
 import { crearCita, filtrarDisponibilidades, type DateAppointment, type Disponibilidad } from "../api";
 import { useApi } from "../context/ApiContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function Agendar() {
   const { addNotification, startLoading, stopLoading } = useApi();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     nombre: "",
     codigo: "",
@@ -13,10 +15,7 @@ export default function Agendar() {
     motivo: "",
     fecha: "",
     hora: "",
-  });
-
-  const [idPsicologo] = useState(1);
-  const [idCliente] = useState(1); 
+  }); 
   const [availabilityFilters, setAvailabilityFilters] = useState({
     idPsicologo: "1",
     fecha: "",
@@ -71,6 +70,25 @@ export default function Agendar() {
       return;
     }
 
+    // Validar que el usuario esté autenticado y tenga un ID
+    if (!user || !user.id) {
+      addNotification('error', 'Debes estar autenticado para agendar una cita');
+      return;
+    }
+
+    // Validar que se haya seleccionado un psicólogo en el filtro
+    if (!availabilityFilters.idPsicologo || availabilityFilters.idPsicologo === "") {
+      addNotification('error', 'Por favor consulta la disponibilidad de un psicólogo primero');
+      return;
+    }
+
+    const idPsicologo = Number(availabilityFilters.idPsicologo);
+    const idCliente = user.id;
+
+    if (isNaN(idPsicologo) || idPsicologo <= 0) {
+      addNotification('error', 'ID de psicólogo inválido');
+      return;
+    }
 
     const [hora, minutos] = formData.hora.split(':').map(Number);
     const horaInicio = `${String(hora).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
@@ -89,6 +107,18 @@ export default function Agendar() {
       startLoading();
       await crearCita(nuevaCita);
       addNotification('success', '¡Cita agendada correctamente!');
+      try {
+        const { crearNotificacion } = await import('../api')
+        await crearNotificacion({
+          idPsicologo: idPsicologo,
+          idCliente: idCliente,
+          fecha: formData.fecha,
+          message: `Nueva cita agendada para ${formData.fecha} a las ${horaInicio}`,
+        })
+        window.dispatchEvent(new Event('notifications:updated'))
+      } catch (err: any) {
+        // No bloquear el flujo si falla la notificación
+      }
       
       setFormData({
         nombre: "",
@@ -100,7 +130,12 @@ export default function Agendar() {
         hora: "",
       });
     } catch (error: any) {
-      addNotification('error', error.message || 'Error al agendar la cita');
+      const rawMsg = error?.message?.toLowerCase?.() || '';
+      if (rawMsg.includes('disponibil') || rawMsg.includes('conflic') || rawMsg.includes('ya reserv') || rawMsg.includes('horario')) {
+        addNotification('error', 'No hay disponibilidad para el horario seleccionado');
+      } else {
+        addNotification('error', error.message || 'Error al agendar la cita');
+      }
     } finally {
       stopLoading();
     }
@@ -442,7 +477,25 @@ export default function Agendar() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {availabilityResults.map((disp) => (
-                            <tr key={disp.id ?? `${disp.fecha}-${disp.horaInicio}-${disp.horaFin}`}>
+                            <tr 
+                              key={disp.id ?? `${disp.fecha}-${disp.horaInicio}-${disp.horaFin}`}
+                              onClick={() => {
+                                // Actualizar el filtro con el idPsicologo de la disponibilidad seleccionada
+                                setAvailabilityFilters(prev => ({
+                                  ...prev,
+                                  idPsicologo: disp.idPsicologo.toString(),
+                                  fecha: disp.fecha
+                                }));
+                                // Actualizar el formulario con la fecha y hora seleccionadas
+                                setFormData(prev => ({
+                                  ...prev,
+                                  fecha: disp.fecha,
+                                  hora: formatHora(disp.horaInicio)
+                                }));
+                                addNotification('success', 'Disponibilidad seleccionada. Completa el formulario y envía la solicitud.');
+                              }}
+                              className="cursor-pointer hover:bg-red-50 transition-colors"
+                            >
                               <td className="px-4 py-3 text-sm text-gray-900 capitalize">{formatFechaLegible(disp.fecha)}</td>
                               <td className="px-4 py-3 text-sm text-gray-700">{formatHora(disp.horaInicio)}</td>
                               <td className="px-4 py-3 text-sm text-gray-700">{formatHora(disp.horaFin)}</td>

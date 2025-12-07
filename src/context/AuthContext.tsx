@@ -27,8 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUserFromToken = useCallback((tokenValue: string) => {
     const decoded = decodeToken(tokenValue);
     if (decoded) {
-      setUser(decoded);
-      setRole(decoded.role || null);
+      // Normalizar id desde posibles campos del token
+      const possibleSub: any = (decoded as any).sub;
+      const normalizedId = decoded.id ?? (decoded as any).userId ?? (typeof possibleSub === 'string' ? Number(possibleSub) : possibleSub);
+      const normalizedUser = { ...decoded, id: normalizedId } as DecodedToken;
+      setUser(normalizedUser);
+      setRole(normalizedUser.role || null);
     } else {
       setUser(null);
       setRole(null);

@@ -1,14 +1,49 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useEffect, useState, useCallback } from 'react'
+import { listarNotificacionesPorCliente, listarNotificacionesPorPsicologo } from '../api'
 
 export default function Navbar() {
   const { isAuthenticated, role, logout, user } = useAuth()
   const navigate = useNavigate()
+  const [notifCount, setNotifCount] = useState(0)
+  const [loadingCount, setLoadingCount] = useState(false)
 
   const handleLogout = () => {
     logout()
     navigate('/login')
   }
+
+  const loadNotifCount = useCallback(async () => {
+    if (!isAuthenticated || !user?.id || !role) return
+    try {
+      setLoadingCount(true)
+      if (role === 'Estudiante') {
+        const list = await listarNotificacionesPorCliente(Number(user.id))
+        setNotifCount(list.length)
+      } else if (role === 'Psicologo') {
+        const list = await listarNotificacionesPorPsicologo(Number(user.id))
+        setNotifCount(list.length)
+      } else {
+        setNotifCount(0)
+      }
+    } catch (e) {
+      // Silenciar errores de conteo para no afectar la navegación
+      setNotifCount(0)
+    } finally {
+      setLoadingCount(false)
+    }
+  }, [isAuthenticated, user?.id, role])
+
+  useEffect(() => {
+    loadNotifCount()
+  }, [loadNotifCount])
+
+  useEffect(() => {
+    const handler = () => loadNotifCount()
+    window.addEventListener('notifications:updated', handler)
+    return () => window.removeEventListener('notifications:updated', handler)
+  }, [loadNotifCount])
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-200 z-50 transition-all duration-300">
@@ -43,16 +78,38 @@ export default function Navbar() {
                     Mis Citas
                   </Link>
                 </li>
+                <li className="relative">
+                  <Link to="/notificaciones" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                    Notificaciones
+                  </Link>
+                  {notifCount > 0 && (
+                    <span className="absolute -top-2 -right-3 bg-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {notifCount}
+                    </span>
+                  )}
+                </li>
               </>
             )}
             
             {/* Enlaces para Psicólogos */}
             {isAuthenticated && role === 'Psicologo' && (
+              <>
               <li>
                 <Link to="/gestion" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
                   Gestión de Citas
                 </Link>
               </li>
+              <li className="relative">
+                <Link to="/notificaciones" className="text-gray-800 hover:text-red-600 font-medium relative after:absolute after:bottom-[-5px] after:left-0 after:h-0.5 after:w-0 after:bg-red-600 after:transition-all hover:after:w-full">
+                  Notificaciones
+                </Link>
+                {notifCount > 0 && (
+                  <span className="absolute -top-2 -right-3 bg-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                    {notifCount}
+                  </span>
+                )}
+              </li>
+              </>
             )}
             
             {/* Enlaces para Administradores */}
